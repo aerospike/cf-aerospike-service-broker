@@ -1,0 +1,4 @@
+
+aerospike_db_host: localhost
+aerospike_db_port: 3000
+aerospike_license_type: community
