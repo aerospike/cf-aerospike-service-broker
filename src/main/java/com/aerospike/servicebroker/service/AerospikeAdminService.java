@@ -18,7 +18,9 @@ package com.aerospike.servicebroker.service;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -28,7 +30,6 @@ import org.springframework.stereotype.Service;
 
 import com.aerospike.client.AerospikeClient;
 import com.aerospike.client.Bin;
-import com.aerospike.client.Host;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
@@ -57,7 +58,7 @@ public class AerospikeAdminService {
 	private Logger logger = LoggerFactory.getLogger(AerospikeAdminService.class);
 	
 	private AerospikeClient client;
-	private Set<String>	    namespaces;
+	private Map<String, Map<String,String>> namespaceInfo = new HashMap<String, Map<String,String>>();
 	
 	private  String licenseType;
 	
@@ -68,11 +69,27 @@ public class AerospikeAdminService {
 		policy.failIfNotConnected = true;
 		this.client =  new AerospikeClient(policy, config.hostname, config.port);
 		this.licenseType = config.licenseType;
+		Set<String>	    namespaces;
 		
 		namespaces = new HashSet<String>(Arrays.asList(Info.request(this.client.getNodes()[0], NAMESPACES_INFO).split(";")));
-		
 		if (!namespaces.contains(ADMIN_NAMESPACE)) {
 			throw new AerospikeServiceException("Namspace cf_admin must be configured in order to use the service broker with this database.");
+		}
+		
+		for (String ns : namespaces) {
+			if (!ns.equalsIgnoreCase(ADMIN_NAMESPACE)) {
+				String info = Info.request(this.client.getNodes()[0], "namespace/" + ns);
+				String[] infos = info.split(";");
+				Map<String, String> infoHash = new HashMap<String, String>();
+				
+				for (String inf : infos) {
+					String[] data = inf.split("=");
+					if (data != null && data.length == 2) {
+						infoHash.put(data[0], data[1]);
+					}
+				}
+				namespaceInfo.put(ns, infoHash);
+			}
 		}
 	}
 	
@@ -82,7 +99,7 @@ public class AerospikeAdminService {
 	}
 	
 	public boolean namespaceExists(String namespace) {
-		return this.namespaces.contains(namespace);
+		return this.namespaceInfo.containsKey(namespace);
 	}
 
 	public void createService(ServiceInstance serviceInstance) {
@@ -132,6 +149,10 @@ public class AerospikeAdminService {
 		this.client.delete(null, key);
 	}
 	
+	public Map<String, Map<String, String>> getNamespaceInfo() {
+		return namespaceInfo;
+	}
+	
 	public String getHostname() {
 		return this.client.getNodes()[0].getHost().name;
 	}
@@ -140,11 +161,11 @@ public class AerospikeAdminService {
 		return this.client.getNodes()[0].getHost().port;
 	}
 	
-	public Host[] getHosts() {
+	public String[] getHosts() {
 		Node[] nodes = this.client.getNodes();
-		Host[] hosts = new Host[nodes.length];
+		String[] hosts = new String[nodes.length];
 		for (int i=0; i<nodes.length; i++) {
-			hosts[i] = nodes[i].getHost();
+			hosts[i] = nodes[i].getHost().toString();
 		}
 		
 		return hosts;

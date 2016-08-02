@@ -16,7 +16,7 @@ In order to build the Spring Boot jar which will be embedded in one of the Cloud
 
 ```gradle assemble```
 
-This will generate the Spring Boot jar file in the ```build/lib``` directory.
+This will generate the Spring Boot jar file in the ```build/libs``` directory.
 
 ### Creating Cloud Foundry Tile
 

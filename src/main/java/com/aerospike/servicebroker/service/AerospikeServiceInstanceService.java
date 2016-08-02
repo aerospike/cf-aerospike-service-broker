@@ -33,12 +33,10 @@ import org.springframework.cloud.servicebroker.model.UpdateServiceInstanceRespon
 import org.springframework.cloud.servicebroker.service.ServiceInstanceService;
 import org.springframework.stereotype.Service;
 
-import com.aerospike.servicebroker.exception.AerospikeServiceException;
 import com.aerospike.servicebroker.model.ServiceInstance;
 
 @Service
 public class AerospikeServiceInstanceService implements ServiceInstanceService{
-	private static final String NAMESPACE_KEY = "namespace";
 	
 	@Autowired
 	private AerospikeAdminService adminService;
@@ -54,16 +52,7 @@ public class AerospikeServiceInstanceService implements ServiceInstanceService{
 			throw new ServiceInstanceExistsException(serviceInstanceId, request.getServiceDefinitionId());
 		}
 		
-		if ( request.getParameters() == null || !request.getParameters().containsKey(NAMESPACE_KEY)) {
-			throw new AerospikeServiceException("Must pass in namespace when creating the service.");
-		}
-		
-		String namespace = (String)request.getParameters().get(NAMESPACE_KEY); 
-		if ( !adminService.namespaceExists(namespace)) {
-			throw new AerospikeServiceException("Namespace " + namespace + " does not exist.");			
-		}
-		
-		ServiceInstance instance = new ServiceInstance(request, namespace);
+		ServiceInstance instance = new ServiceInstance(request, request.getPlanId());
 		this.adminService.createService(instance);
 		
 		return new CreateServiceInstanceResponse();

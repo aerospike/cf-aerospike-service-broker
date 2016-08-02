@@ -19,6 +19,7 @@ package com.aerospike.servicebroker.service;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +37,8 @@ import com.aerospike.servicebroker.model.ServiceInstanceBinding;
 
 @Service
 public class AerospikeServiceInstanceBindingService implements ServiceInstanceBindingService {
-
+	private static final String SETNAME_KEY = "setname";
+	
 	@Autowired
 	private AerospikeAdminService adminService;
 	
@@ -47,27 +49,26 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 			CreateServiceInstanceBindingRequest request) {
 
 		String bindingId = request.getBindingId();
+		String serviceInstanceId = request.getServiceInstanceId();
+		
 		logger.info("Creating Binding ID: " + bindingId);
 		
 		if (this.adminService.serviceBindingExists(bindingId)) {
 			throw new ServiceInstanceBindingExistsException(bindingId, bindingId);
 		}
-		
-		ServiceInstanceBinding binding = new ServiceInstanceBinding(request);
-		this.adminService.createServiceBinding(binding);
-		
+				
 		String setName = request.getServiceInstanceId();
-		if (request.getParameters().containsKey("setname")) {
-			setName = (String)request.getParameters().get("setname");
+		if (request.getParameters().containsKey(SETNAME_KEY)) {
+			setName = (String)request.getParameters().get(SETNAME_KEY);
 		}
 		
 		ServiceInstance si = this.adminService.getService(request.getServiceInstanceId());
-
-		// TODO Password Generator
-		String password = "password";
+		String password = RandomStringUtils.randomAlphabetic(16);
 		
 		Map<String, Object> credentials = new HashMap<String, Object>();
-		credentials.put("set", setName);
+		if (setName != null) {
+			credentials.put("set", setName);
+		}
 		credentials.put("namespace", si.getNamespace());
 		credentials.put("user", request.getBindingId());
 		credentials.put("password", password);
@@ -77,6 +78,10 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 		
 		this.adminService.createUser(request.getBindingId(), password);
 		
+		ServiceInstanceBinding binding = new ServiceInstanceBinding(bindingId, serviceInstanceId, credentials,
+				null, request.getBoundAppGuid());
+		this.adminService.createServiceBinding(binding);
+
 		return new CreateServiceInstanceAppBindingResponse().withCredentials(credentials);
 	}
 
