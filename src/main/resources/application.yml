@@ -1,4 +1,7 @@
 
-aerospike_db_host: localhost
+aerospike_db_host: 10.65.180.113
 aerospike_db_port: 3000
-aerospike_license_type: community
+aerospike_license_type: enterprise
+aerospike_admin_namespace: cf_admin
+aerospike_admin_user: cf_admin
+aerospike_admin_password: cf_admin

@@ -30,11 +30,20 @@ public class AerospikeConfig {
 	@Value("${aerospike_db_port:3000}")
 	private  int port;
 	
-	@Value("${aerospike_license_type}")
+	@Value("${aerospike_license_type:community}")
 	private String licenseType;
+	
+	@Value("${aerospike_admin_namespace:cf_admin}")
+	private String adminNamespace;
+	
+	@Value("${aerospike_admin_user:cf_user}")
+	private String user;
+	
+	@Value("${aerospike_admin_password:cf_password}")
+	private String password;
 	
 	@Bean
 	public AerospikeClientConfig aerospikeClientConfig() throws UnknownHostException {
-		return new AerospikeClientConfig(hostname, port, licenseType);
+		return new AerospikeClientConfig(hostname, port, licenseType, adminNamespace, user, password);
 	}
 }

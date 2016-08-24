@@ -44,7 +44,6 @@ import com.aerospike.servicebroker.model.ServiceInstanceBinding;
 @Service
 public class AerospikeAdminService {
 	// These could be externalized
-	private static final String ADMIN_NAMESPACE = "cf_admin";
 	private static final String ADMIN_BINDING = "binding";
 	private static final String ADMIN_SERVICE = "service";
 
@@ -60,24 +59,32 @@ public class AerospikeAdminService {
 	private AerospikeClient client;
 	private Map<String, Map<String,String>> namespaceInfo = new HashMap<String, Map<String,String>>();
 	
-	private  String licenseType;
+	private String licenseType;
+	private String adminNamespace;
 	
 	@Autowired
 	public AerospikeAdminService(AerospikeClientConfig config) {
 		logger.info("Intializing Admin Service");
 		ClientPolicy policy = new ClientPolicy();
 		policy.failIfNotConnected = true;
-		this.client =  new AerospikeClient(policy, config.hostname, config.port);
 		this.licenseType = config.licenseType;
-		Set<String>	    namespaces;
+		this.adminNamespace = config.adminNamespace;
 		
+		if (this.licenseType.equalsIgnoreCase(ENTERPRISE)) {
+			policy.user = config.user;
+			policy.password = config.password;
+		}
+		this.client =  new AerospikeClient(policy, config.hostname, config.port);
+
+		Set<String>	    namespaces;		
 		namespaces = new HashSet<String>(Arrays.asList(Info.request(this.client.getNodes()[0], NAMESPACES_INFO).split(";")));
-		if (!namespaces.contains(ADMIN_NAMESPACE)) {
-			throw new AerospikeServiceException("Namspace cf_admin must be configured in order to use the service broker with this database.");
+		if (!namespaces.contains(this.adminNamespace)) {
+			throw new AerospikeServiceException("Namspace " + this.adminNamespace +
+						" must be configured in order to use the service broker with this database.");
 		}
 		
 		for (String ns : namespaces) {
-			if (!ns.equalsIgnoreCase(ADMIN_NAMESPACE)) {
+			if (!ns.equalsIgnoreCase(this.adminNamespace)) {
 				String info = Info.request(this.client.getNodes()[0], "namespace/" + ns);
 				String[] infos = info.split(";");
 				Map<String, String> infoHash = new HashMap<String, String>();
@@ -94,7 +101,7 @@ public class AerospikeAdminService {
 	}
 	
 	public boolean serviceExists(String serviceId) {
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_SERVICE, serviceId);
+		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceId);
 		return this.client.exists(null, key);
 	}
 	
@@ -103,14 +110,14 @@ public class AerospikeAdminService {
 	}
 
 	public void createService(ServiceInstance serviceInstance) {
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
+		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
 		Bin bin = new Bin(SERVICE_INSTANCE_BINNAME, serviceInstance);
 		this.client.put(null, key, bin);
 	}
 	
 	public ServiceInstance getService(String serviceId) {
 		ServiceInstance service = null;
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_SERVICE, serviceId);
+		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceId);
 		Record record = this.client.get(null, key);
 		if (record != null) {
 			service = (ServiceInstance)record.getValue(SERVICE_INSTANCE_BINNAME);
@@ -119,24 +126,24 @@ public class AerospikeAdminService {
 	}
 	
 	public void deleteService(ServiceInstance serviceInstance) {
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
+		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
 		this.client.delete(null, key);
 	}
 	
 	public boolean serviceBindingExists(String serviceBindingId) {
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_BINDING, serviceBindingId);
+		Key key = new Key(this.adminNamespace, ADMIN_BINDING, serviceBindingId);
 		return this.client.exists(null, key);
 	}
 	
 	public void createServiceBinding(ServiceInstanceBinding binding) {
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_BINDING, binding.getId());
+		Key key = new Key(this.adminNamespace, ADMIN_BINDING, binding.getId());
 		Bin bin = new Bin(SERVICE_BINDING_BINNAME, binding);
 		this.client.put(null, key, bin);
 	}
 	
 	public ServiceInstanceBinding getServiceBinding(String serviceBindingId) {
 		ServiceInstanceBinding binding = null;
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_BINDING, serviceBindingId);
+		Key key = new Key(this.adminNamespace, ADMIN_BINDING, serviceBindingId);
 		Record record = this.client.get(null, key);
 		if (record != null) {
 			binding = (ServiceInstanceBinding)record.getValue(SERVICE_BINDING_BINNAME);
@@ -145,7 +152,7 @@ public class AerospikeAdminService {
 	}
 	
 	public void deleteServiceBinding(ServiceInstanceBinding binding) {
-		Key key = new Key(ADMIN_NAMESPACE, ADMIN_BINDING, binding.getId());
+		Key key = new Key(this.adminNamespace, ADMIN_BINDING, binding.getId());
 		this.client.delete(null, key);
 	}
 	

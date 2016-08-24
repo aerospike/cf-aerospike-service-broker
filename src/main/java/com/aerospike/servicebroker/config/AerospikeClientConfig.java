@@ -20,10 +20,17 @@ public class AerospikeClientConfig {
 	public final String hostname;
 	public final int port;
 	public final String licenseType;
+	public final String adminNamespace;
+	public final String user;
+	public final String password;
 	
-	public AerospikeClientConfig(String hostname, int port, String licenseType) {
+	public AerospikeClientConfig(String hostname, int port, String licenseType, 
+			String adminNamespace, String user, String password) {
 		this.hostname = hostname;
 		this.port = port;
 		this.licenseType = licenseType;
+		this.adminNamespace = adminNamespace;
+		this.user = user;
+		this.password = password;
 	}
 }
