@@ -58,7 +58,8 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 		}
 				
 		String setName = request.getServiceInstanceId();
-		if (request.getParameters().containsKey(SETNAME_KEY)) {
+		if (request.getParameters() != null && 
+				request.getParameters().containsKey(SETNAME_KEY)) {
 			setName = (String)request.getParameters().get(SETNAME_KEY);
 		}
 		
@@ -76,7 +77,7 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 		credentials.put("port", adminService.getPort());
 		credentials.put("hosts", adminService.getHosts());
 		
-		this.adminService.createUser(request.getBindingId(), password);
+		this.adminService.createUser(request.getBindingId(), password, si.getNamespace(), setName);
 		
 		ServiceInstanceBinding binding = new ServiceInstanceBinding(bindingId, serviceInstanceId, credentials,
 				null, request.getBoundAppGuid());

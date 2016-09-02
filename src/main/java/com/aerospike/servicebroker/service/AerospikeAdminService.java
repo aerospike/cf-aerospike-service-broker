@@ -178,9 +178,15 @@ public class AerospikeAdminService {
 		return hosts;
 	}
 	
-	public void createUser(String user, String password) {
+	public void createUser(String user, String password, String namespace, String set) {
 		if (this.licenseType.equalsIgnoreCase(ENTERPRISE)) {
-			this.client.createUser(null, user, password, Collections.singletonList(Role.ReadWrite));
+			String permissionStr = Role.ReadWriteUdf + "." + namespace;
+			if (set != null)  {
+				permissionStr = permissionStr + "." + set;
+			}
+					
+			this.client.createUser(null, user, password, 
+					Collections.singletonList(permissionStr));
 		}
 	}
 	
