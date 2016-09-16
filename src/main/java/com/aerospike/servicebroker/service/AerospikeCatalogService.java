@@ -30,14 +30,27 @@ import org.springframework.cloud.servicebroker.model.ServiceDefinition;
 import org.springframework.cloud.servicebroker.service.CatalogService;
 import org.springframework.stereotype.Service;
 
+import com.aerospike.servicebroker.config.AerospikeCatalogConfig;
+
 @Service
 public class AerospikeCatalogService implements CatalogService {
 	private static final String STORAGE_ENGINE_KEY = "storage-engine";
 	private static final String MEMORY_SIZE_KEY = "memory-size";
 	private static final String REPLICATION_FACTOR_KEY = "repl-factor";
 	
+	private final String serviceId;
+	private final String serviceName;
+	private final String serviceDescription;
+	
 	@Autowired
 	AerospikeAdminService adminService;
+	
+	@Autowired
+	public AerospikeCatalogService(AerospikeCatalogConfig config) {
+		this.serviceName = config.serviceName;
+		this.serviceId = config.serviceId;
+		this.serviceDescription = config.serviceDescription;
+	}
 	
 	@Override
 	public Catalog getCatalog() {
@@ -51,9 +64,9 @@ public class AerospikeCatalogService implements CatalogService {
 	
 	private ServiceDefinition getServiceDefinition() {
 		return new ServiceDefinition(
-				"aerospike-service-broker",
-				"aerospike",
-				"Service Broker implementation for an Aerospike database",
+				this.serviceId,
+				this.serviceName,
+				this.serviceDescription,
 				true,
 				false,
 				getPlans(),					
@@ -63,11 +76,17 @@ public class AerospikeCatalogService implements CatalogService {
 				null);
 	}
 	
-	private Map<String,Object> getPlanMetadata() {
+	private Map<String,Object> getPlanMetadata(Map<String, String> info) {
 		Map<String, Object> planMetadata = new HashMap<>();
-		planMetadata.put("costs", getCosts());
-		planMetadata.put("bullets", getBullets());
+		planMetadata.put("costs", Collections.singletonList(new HashMap<>()));
+		planMetadata.put("bullets", getBullets(info));
 		return planMetadata;
+	}
+	
+	private String getDescription(Map<String, String> info) {
+		return "Storage:" + info.get(STORAGE_ENGINE_KEY) +
+				", Size:" + info.get(MEMORY_SIZE_KEY) +
+				", Replication Factor:" + info.get(REPLICATION_FACTOR_KEY);
 	}
 	
 	private List<Plan> getPlans() {
@@ -78,10 +97,8 @@ public class AerospikeCatalogService implements CatalogService {
 			Map<String, String> info = namespaces.get(ns);
 			plans.add(new Plan(ns,
 					ns,
-					"Storage:" +                info.get(STORAGE_ENGINE_KEY) + 
-					", Size:"  +                info.get(MEMORY_SIZE_KEY) +
-					", Replication Factor:" +   info.get(REPLICATION_FACTOR_KEY),
-					getPlanMetadata(), true));
+					getDescription(info),
+					getPlanMetadata(info), true));
 		}
 		return plans;
 	}
@@ -89,7 +106,7 @@ public class AerospikeCatalogService implements CatalogService {
 	private Map<String, Object> getServiceDefinitionMetadata() {
 		Map<String, Object> sdMetadata = new HashMap<>();
 		sdMetadata.put("displayName", "Aerospike");
-		sdMetadata.put("imageUrl", "http://www.datamojo.com/wp-content/uploads/2013/07/aerospike_logo_square1.png");
+		sdMetadata.put("imageUrl", "https://www.aerospike.com/assets/images/icons/apple-icon-144x144.png");
 		sdMetadata.put("longDescription", "Aerospike Service");
 		sdMetadata.put("providerDisplayName", "Aerospike");
 		sdMetadata.put("documentationUrl", "https://github.com/aerospike/aerospike-service-broker");
@@ -97,12 +114,9 @@ public class AerospikeCatalogService implements CatalogService {
 		return sdMetadata;
 	}
 	
-	private List<Map<String,Object>> getCosts() {
-		return Collections.singletonList(new HashMap<>());
-	}
-	
-	private List<String> getBullets() {
-		return Arrays.asList("Shared Aerospike server", 
-				"100 MB Storage (not enforced)");
+	private List<String> getBullets(Map<String, String> info) {
+		return Arrays.asList("Storage: " + info.get(STORAGE_ENGINE_KEY), 
+				"Size: " + info.get(MEMORY_SIZE_KEY),
+				"Replication Factor: " + info.get(REPLICATION_FACTOR_KEY));
 	}
 }

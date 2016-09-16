@@ -42,8 +42,22 @@ public class AerospikeConfig {
 	@Value("${aerospike_admin_password:cf_password}")
 	private String password;
 	
+	@Value("${aerospike_service_id:aerospike-service-broker}")
+	private String serviceId;
+	
+	@Value("${aerospike_service_name:aerospike}")
+	private String serviceName;
+	
+	@Value("${aerospike_service_description:aerospike-service-broker}")
+	private String serviceDescription;
+	
 	@Bean
 	public AerospikeClientConfig aerospikeClientConfig() throws UnknownHostException {
 		return new AerospikeClientConfig(hostname, port, licenseType, adminNamespace, user, password);
+	}
+	
+	@Bean
+	public AerospikeCatalogConfig aerospikeCatalogConfig() {
+		return new AerospikeCatalogConfig(serviceId, serviceName, serviceDescription);
 	}
 }

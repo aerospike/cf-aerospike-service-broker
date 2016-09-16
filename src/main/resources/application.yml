@@ -1,7 +1,12 @@
-
-aerospike_db_host: 10.65.180.113
+# Client configuration
+aerospike_db_host: localhost
 aerospike_db_port: 3000
 aerospike_license_type: enterprise
 aerospike_admin_namespace: cf_admin
 aerospike_admin_user: cf_admin
 aerospike_admin_password: cf_admin
+
+# Catalog configuration
+aerospike_service_id: aerospike-service-broker
+aerospike_service_name: aerospike
+aerospike_service_description: Aerospike Enterprise Edition Managed Service
