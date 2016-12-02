@@ -57,7 +57,7 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 			throw new ServiceInstanceBindingExistsException(bindingId, bindingId);
 		}
 				
-		String setName = request.getServiceInstanceId();
+		String setName = null;
 		if (request.getParameters() != null && 
 				request.getParameters().containsKey(SETNAME_KEY)) {
 			setName = (String)request.getParameters().get(SETNAME_KEY);
@@ -71,13 +71,13 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 			credentials.put("set", setName);
 		}
 		credentials.put("namespace", si.getNamespace());
-		credentials.put("user", request.getBindingId());
 		credentials.put("password", password);
 		credentials.put("hostname", adminService.getHostname());
 		credentials.put("port", adminService.getPort());
 		credentials.put("hosts", adminService.getHosts());
 		
-		this.adminService.createUser(request.getBindingId(), password, si.getNamespace(), setName);
+		String userName = this.adminService.createUser(request.getBindingId(), password, si.getNamespace(), setName);
+		credentials.put("user", userName);
 		
 		ServiceInstanceBinding binding = new ServiceInstanceBinding(bindingId, serviceInstanceId, credentials,
 				null, request.getBoundAppGuid());
@@ -89,7 +89,7 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 	@Override
 	public void deleteServiceInstanceBinding(DeleteServiceInstanceBindingRequest request) {
 		String bindingId = request.getBindingId();
-		logger.info("Deleting Binding ID: " + bindingId);
+		System.out.println("DELETING BINDING ID: " + bindingId);
 		
 		if (!this.adminService.serviceBindingExists(bindingId)) {
 			throw new ServiceInstanceBindingDoesNotExistException(bindingId);

@@ -29,11 +29,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.aerospike.client.AerospikeClient;
+import com.aerospike.client.AerospikeException;
 import com.aerospike.client.Bin;
 import com.aerospike.client.Info;
 import com.aerospike.client.Key;
 import com.aerospike.client.Record;
-import com.aerospike.client.admin.Role;
+import com.aerospike.client.admin.Privilege;
+import com.aerospike.client.admin.PrivilegeCode;
 import com.aerospike.client.cluster.Node;
 import com.aerospike.client.policy.ClientPolicy;
 import com.aerospike.servicebroker.config.AerospikeClientConfig;
@@ -59,32 +61,23 @@ public class AerospikeAdminService {
 	private AerospikeClient client;
 	private Map<String, Map<String,String>> namespaceInfo = new HashMap<String, Map<String,String>>();
 	
-	private String licenseType;
-	private String adminNamespace;
+	private AerospikeClientConfig config;
 	
 	@Autowired
 	public AerospikeAdminService(AerospikeClientConfig config) {
 		logger.info("Intializing Admin Service");
-		ClientPolicy policy = new ClientPolicy();
-		policy.failIfNotConnected = true;
-		this.licenseType = config.licenseType;
-		this.adminNamespace = config.adminNamespace;
+		this.config = config;
+		this.client = getClient();
 		
-		if (this.licenseType.equalsIgnoreCase(ENTERPRISE)) {
-			policy.user = config.user;
-			policy.password = config.password;
-		}
-		this.client =  new AerospikeClient(policy, config.hostname, config.port);
-
 		Set<String>	    namespaces;		
 		namespaces = new HashSet<String>(Arrays.asList(Info.request(this.client.getNodes()[0], NAMESPACES_INFO).split(";")));
-		if (!namespaces.contains(this.adminNamespace)) {
-			throw new AerospikeServiceException("Namspace " + this.adminNamespace +
+		if (!namespaces.contains(config.adminNamespace)) {
+			throw new AerospikeServiceException("Namspace " + config.adminNamespace +
 						" must be configured in order to use the service broker with this database.");
 		}
 		
 		for (String ns : namespaces) {
-			if (!ns.equalsIgnoreCase(this.adminNamespace)) {
+			if (!ns.equalsIgnoreCase(config.adminNamespace)) {
 				String info = Info.request(this.client.getNodes()[0], "namespace/" + ns);
 				String[] infos = info.split(";");
 				Map<String, String> infoHash = new HashMap<String, String>();
@@ -100,9 +93,27 @@ public class AerospikeAdminService {
 		}
 	}
 	
+	private AerospikeClient getClient() {
+		ClientPolicy policy = new ClientPolicy();
+		policy.failIfNotConnected = true;
+			
+		if (ENTERPRISE.equalsIgnoreCase(config.licenseType)) {
+			policy.user = config.user;
+			policy.password = config.password;
+		}
+		AerospikeClient client =  new AerospikeClient(policy, config.hostname, config.port);
+		System.out.println("CONNECTED ? " + client.isConnected());
+		return client;
+	}
+	
 	public boolean serviceExists(String serviceId) {
-		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceId);
-		return this.client.exists(null, key);
+		Key key = new Key(config.adminNamespace, ADMIN_SERVICE, serviceId);
+		try {
+			return this.client.exists(null, key);
+		} catch (AerospikeException ae){
+			System.out.println("serviceExists AerospikeException: " + ae.getMessage());
+			return false;
+		}
 	}
 	
 	public boolean namespaceExists(String namespace) {
@@ -110,50 +121,83 @@ public class AerospikeAdminService {
 	}
 
 	public void createService(ServiceInstance serviceInstance) {
-		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
-		Bin bin = new Bin(SERVICE_INSTANCE_BINNAME, serviceInstance);
-		this.client.put(null, key, bin);
+		if (serviceInstance != null) {
+			Key key = new Key(config.adminNamespace, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
+			Bin bin = new Bin(SERVICE_INSTANCE_BINNAME, serviceInstance);
+			this.client.put(null, key, bin);
+		}
 	}
 	
 	public ServiceInstance getService(String serviceId) {
 		ServiceInstance service = null;
-		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceId);
-		Record record = this.client.get(null, key);
-		if (record != null) {
-			service = (ServiceInstance)record.getValue(SERVICE_INSTANCE_BINNAME);
+		Key key = new Key(config.adminNamespace, ADMIN_SERVICE, serviceId);
+		try {
+			Record record = this.client.get(null, key);
+			
+			if (record != null) {
+				service = (ServiceInstance)record.getValue(SERVICE_INSTANCE_BINNAME);
+			}
+		} catch (AerospikeException ae) {
+			System.out.println("getService AerospikeException: " + ae.getMessage());
 		}
 		return service;
 	}
 	
 	public void deleteService(ServiceInstance serviceInstance) {
-		Key key = new Key(this.adminNamespace, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
-		this.client.delete(null, key);
+		if (serviceInstance != null) {
+			Key key = new Key(config.adminNamespace, ADMIN_SERVICE, serviceInstance.getServiceInstanceId());
+			try {
+				this.client.delete(null, key);
+			} catch (AerospikeException ae) {
+				System.out.println("deleteService AerospikeException: " + ae.getMessage());
+			}
+		}
 	}
 	
 	public boolean serviceBindingExists(String serviceBindingId) {
-		Key key = new Key(this.adminNamespace, ADMIN_BINDING, serviceBindingId);
-		return this.client.exists(null, key);
+		System.out.println("CHECKING IF SERVICE INSTANCE BINDING EXISTS : " + serviceBindingId);
+		Key key = new Key(config.adminNamespace, ADMIN_BINDING, serviceBindingId);
+		try {
+			return this.client.exists(null, key);
+		} catch (AerospikeException ae) {
+			System.out.println("serviceBindingExists AerospikeException: " + ae.getMessage());
+			return false;
+		}
 	}
 	
 	public void createServiceBinding(ServiceInstanceBinding binding) {
-		Key key = new Key(this.adminNamespace, ADMIN_BINDING, binding.getId());
-		Bin bin = new Bin(SERVICE_BINDING_BINNAME, binding);
-		this.client.put(null, key, bin);
+		System.out.println("CREATING SERVICE INSTANCE BINDING : " + binding.getId());
+		if (binding != null) {
+			Key key = new Key(config.adminNamespace, ADMIN_BINDING, binding.getId());
+			Bin bin = new Bin(SERVICE_BINDING_BINNAME, binding);
+			this.client.put(null, key, bin);
+		}
 	}
 	
 	public ServiceInstanceBinding getServiceBinding(String serviceBindingId) {
+		System.out.println("GETTING SERVICE INSTANCE BINDING : " + serviceBindingId);
 		ServiceInstanceBinding binding = null;
-		Key key = new Key(this.adminNamespace, ADMIN_BINDING, serviceBindingId);
-		Record record = this.client.get(null, key);
-		if (record != null) {
-			binding = (ServiceInstanceBinding)record.getValue(SERVICE_BINDING_BINNAME);
+		Key key = new Key(config.adminNamespace, ADMIN_BINDING, serviceBindingId);
+		try {
+			Record record = this.client.get(null, key);
+			if (record != null) {
+				binding = (ServiceInstanceBinding)record.getValue(SERVICE_BINDING_BINNAME);
+			}
+		} catch (AerospikeException ae) {
+			System.out.println("getServiceBinding AerospikeException: " + ae.getMessage());
 		}
 		return binding;
 	}
 	
 	public void deleteServiceBinding(ServiceInstanceBinding binding) {
-		Key key = new Key(this.adminNamespace, ADMIN_BINDING, binding.getId());
-		this.client.delete(null, key);
+		if (binding != null) {
+			Key key = new Key(config.adminNamespace, ADMIN_BINDING, binding.getId());
+			try {
+				this.client.delete(null, key);
+			} catch (AerospikeException ae) {
+				System.out.println("deleteServiceBinding AerospikeException: " + ae.getMessage());
+			}
+		}
 	}
 	
 	public Map<String, Map<String, String>> getNamespaceInfo() {
@@ -178,21 +222,76 @@ public class AerospikeAdminService {
 		return hosts;
 	}
 	
-	public void createUser(String user, String password, String namespace, String set) {
-		if (this.licenseType.equalsIgnoreCase(ENTERPRISE)) {
-			String permissionStr = Role.ReadWriteUdf + "." + namespace;
-			if (set != null)  {
-				permissionStr = permissionStr + "." + set;
+	private String formatUserRole(String prefix, String key) {
+		return (prefix + key.replaceAll("-", "")).substring(0, 30);
+	}
+	
+	public String createUser(String user, String password, String namespace, String set) {
+		String userName = null;
+		if (config.licenseType.equalsIgnoreCase(ENTERPRISE)) {
+			Privilege p = new Privilege();
+			p.code = PrivilegeCode.READ_WRITE_UDF;
+			p.namespace = namespace;
+			p.setName = set;
+			
+			String roleName = formatUserRole("r", user);
+			userName = formatUserRole("u" , user);
+			
+			int retries = 5;
+			boolean createdRole = false;
+			boolean createdUser = false;
+
+			do {
+				try {
+					if (!createdRole) {
+						System.out.println("CREATING ROLE: " + roleName);
+						this.client.createRole(null, roleName, Collections.singletonList(p));
+						createdRole = true;
+					}
+					if (!createdUser) {
+						System.out.println("CREATING USER: " + userName);
+						this.client.createUser(null, userName, password, 
+								Collections.singletonList(roleName));
+						createdUser = true;
+					}
+					System.out.println("CREATED USER/ROLE");
+				} catch (AerospikeException ae) {
+					System.out.println("createRole/User AerospikeException: " + ae.getMessage());
+				} 
+			} while (!(createdRole && createdUser) && retries-- > 0);
+			
+			if (!(createdRole && createdUser)) {
+				throw new AerospikeServiceException("Could not bind service. Please try again.");
 			}
-					
-			this.client.createUser(null, user, password, 
-					Collections.singletonList(permissionStr));
 		}
+		return userName;
 	}
 	
 	public void dropUser(String user) {
-		if (this.licenseType.equalsIgnoreCase(ENTERPRISE)) {
-			this.client.dropUser(null, user);
+		if (config.licenseType.equalsIgnoreCase(ENTERPRISE)) {
+			boolean droppedUser = false;
+			boolean droppedRole = false;			
+			int retries = 5;
+			String userName = formatUserRole("u", user);
+			String roleName = formatUserRole("r", user);
+			
+			do {			
+				try {
+					if (!droppedUser) {
+						System.out.println("DROPPING USER: " + userName);
+						this.client.dropUser(null, userName);
+						droppedUser = true;
+					}
+					if (!droppedRole) {
+						System.out.println("DROPPING ROLE: " + roleName);
+						this.client.dropRole(null, roleName);
+						droppedRole = true;
+					}
+					System.out.println("DROPPED USER/ROLE");
+				} catch (AerospikeException ae) {
+					System.out.println("dropRole/User AerospikeException: " + ae.getMessage());
+				}
+			} while (!(droppedRole && droppedUser) && retries-- > 0);
 		}
 	}
 }
