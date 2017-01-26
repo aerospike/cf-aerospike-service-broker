@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2016 Aerospike, Inc.
+ * Copyright 2012-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -33,6 +33,7 @@ import org.springframework.cloud.servicebroker.model.UpdateServiceInstanceRespon
 import org.springframework.cloud.servicebroker.service.ServiceInstanceService;
 import org.springframework.stereotype.Service;
 
+import com.aerospike.servicebroker.exception.AerospikeServiceException;
 import com.aerospike.servicebroker.model.ServiceInstance;
 
 @Service
@@ -50,6 +51,12 @@ public class AerospikeServiceInstanceService implements ServiceInstanceService{
 		
 		if (this.adminService.serviceExists(serviceInstanceId)) {
 			throw new ServiceInstanceExistsException(serviceInstanceId, request.getServiceDefinitionId());
+		}
+		
+		if (!this.adminService.validateLicense()) {
+			throw new AerospikeServiceException(
+				"User and password could not be validated. " +
+			    "Please ensure your Aerospike Enterprise Edition user and password have been entered correctly in the tile.");
 		}
 		
 		ServiceInstance instance = new ServiceInstance(request, request.getPlanId());

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2016 Aerospike, Inc.
+ * Copyright 2012-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -23,6 +23,15 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,7 +64,8 @@ public class AerospikeAdminService {
 	private static final String NAMESPACES_INFO = "namespaces";
 	
 	private static final String ENTERPRISE = "enterprise";
-	
+	private static final String EE_DOWNLOAD_URI = "http://www.aerospike.com/enterprise/download/server/latest";
+			
 	private Logger logger = LoggerFactory.getLogger(AerospikeAdminService.class);
 	
 	private AerospikeClient client;
@@ -102,7 +112,6 @@ public class AerospikeAdminService {
 			policy.password = config.password;
 		}
 		AerospikeClient client =  new AerospikeClient(policy, config.hostname, config.port);
-		System.out.println("CONNECTED ? " + client.isConnected());
 		return client;
 	}
 	
@@ -111,9 +120,32 @@ public class AerospikeAdminService {
 		try {
 			return this.client.exists(null, key);
 		} catch (AerospikeException ae){
-			System.out.println("serviceExists AerospikeException: " + ae.getMessage());
+			logger.info("serviceExists AerospikeException: " + ae.getMessage());
 			return false;
 		}
+	}
+	
+	public boolean validateLicense() {
+		if (!ENTERPRISE.equalsIgnoreCase(this.config.licenseType)) {
+			return true;		// Only validate license for EE product
+		}
+		
+		boolean valid = false;
+		
+		CredentialsProvider provider = new BasicCredentialsProvider();
+		UsernamePasswordCredentials credentials
+		 	= new UsernamePasswordCredentials(this.config.licenseUser, this.config.licensePassword);
+		provider.setCredentials(AuthScope.ANY, credentials);
+		HttpClient client = HttpClientBuilder.create().setDefaultCredentialsProvider(provider).build();
+		HttpHead request = new HttpHead(EE_DOWNLOAD_URI);
+		try {			
+			HttpResponse response = client.execute(request);
+			valid = ( response.getStatusLine().getStatusCode() == HttpStatus.SC_OK );
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		return valid;
 	}
 	
 	public boolean namespaceExists(String namespace) {
@@ -138,7 +170,7 @@ public class AerospikeAdminService {
 				service = (ServiceInstance)record.getValue(SERVICE_INSTANCE_BINNAME);
 			}
 		} catch (AerospikeException ae) {
-			System.out.println("getService AerospikeException: " + ae.getMessage());
+			logger.info("getService AerospikeException: " + ae.getMessage());
 		}
 		return service;
 	}
@@ -149,24 +181,22 @@ public class AerospikeAdminService {
 			try {
 				this.client.delete(null, key);
 			} catch (AerospikeException ae) {
-				System.out.println("deleteService AerospikeException: " + ae.getMessage());
+				logger.info("deleteService AerospikeException: " + ae.getMessage());
 			}
 		}
 	}
 	
 	public boolean serviceBindingExists(String serviceBindingId) {
-		System.out.println("CHECKING IF SERVICE INSTANCE BINDING EXISTS : " + serviceBindingId);
 		Key key = new Key(config.adminNamespace, ADMIN_BINDING, serviceBindingId);
 		try {
 			return this.client.exists(null, key);
 		} catch (AerospikeException ae) {
-			System.out.println("serviceBindingExists AerospikeException: " + ae.getMessage());
+			logger.error("serviceBindingExists AerospikeException: " + ae.getMessage());
 			return false;
 		}
 	}
 	
 	public void createServiceBinding(ServiceInstanceBinding binding) {
-		System.out.println("CREATING SERVICE INSTANCE BINDING : " + binding.getId());
 		if (binding != null) {
 			Key key = new Key(config.adminNamespace, ADMIN_BINDING, binding.getId());
 			Bin bin = new Bin(SERVICE_BINDING_BINNAME, binding);
@@ -175,7 +205,6 @@ public class AerospikeAdminService {
 	}
 	
 	public ServiceInstanceBinding getServiceBinding(String serviceBindingId) {
-		System.out.println("GETTING SERVICE INSTANCE BINDING : " + serviceBindingId);
 		ServiceInstanceBinding binding = null;
 		Key key = new Key(config.adminNamespace, ADMIN_BINDING, serviceBindingId);
 		try {
@@ -184,7 +213,7 @@ public class AerospikeAdminService {
 				binding = (ServiceInstanceBinding)record.getValue(SERVICE_BINDING_BINNAME);
 			}
 		} catch (AerospikeException ae) {
-			System.out.println("getServiceBinding AerospikeException: " + ae.getMessage());
+			logger.error("getServiceBinding AerospikeException: " + ae.getMessage());
 		}
 		return binding;
 	}
@@ -195,7 +224,7 @@ public class AerospikeAdminService {
 			try {
 				this.client.delete(null, key);
 			} catch (AerospikeException ae) {
-				System.out.println("deleteServiceBinding AerospikeException: " + ae.getMessage());
+				logger.error("deleteServiceBinding AerospikeException: " + ae.getMessage());
 			}
 		}
 	}
@@ -228,7 +257,7 @@ public class AerospikeAdminService {
 	
 	public String createUser(String user, String password, String namespace, String set) {
 		String userName = null;
-		if (config.licenseType.equalsIgnoreCase(ENTERPRISE)) {
+		if (ENTERPRISE.equalsIgnoreCase(config.licenseType)) {
 			Privilege p = new Privilege();
 			p.code = PrivilegeCode.READ_WRITE_UDF;
 			p.namespace = namespace;
@@ -244,19 +273,16 @@ public class AerospikeAdminService {
 			do {
 				try {
 					if (!createdRole) {
-						System.out.println("CREATING ROLE: " + roleName);
 						this.client.createRole(null, roleName, Collections.singletonList(p));
 						createdRole = true;
 					}
 					if (!createdUser) {
-						System.out.println("CREATING USER: " + userName);
 						this.client.createUser(null, userName, password, 
 								Collections.singletonList(roleName));
 						createdUser = true;
 					}
-					System.out.println("CREATED USER/ROLE");
 				} catch (AerospikeException ae) {
-					System.out.println("createRole/User AerospikeException: " + ae.getMessage());
+					logger.error("createRole/User AerospikeException: " + ae.getMessage());
 				} 
 			} while (!(createdRole && createdUser) && retries-- > 0);
 			
@@ -268,7 +294,7 @@ public class AerospikeAdminService {
 	}
 	
 	public void dropUser(String user) {
-		if (config.licenseType.equalsIgnoreCase(ENTERPRISE)) {
+		if (ENTERPRISE.equalsIgnoreCase(config.licenseType)) {
 			boolean droppedUser = false;
 			boolean droppedRole = false;			
 			int retries = 5;
@@ -278,18 +304,15 @@ public class AerospikeAdminService {
 			do {			
 				try {
 					if (!droppedUser) {
-						System.out.println("DROPPING USER: " + userName);
 						this.client.dropUser(null, userName);
 						droppedUser = true;
 					}
 					if (!droppedRole) {
-						System.out.println("DROPPING ROLE: " + roleName);
 						this.client.dropRole(null, roleName);
 						droppedRole = true;
 					}
-					System.out.println("DROPPED USER/ROLE");
 				} catch (AerospikeException ae) {
-					System.out.println("dropRole/User AerospikeException: " + ae.getMessage());
+					logger.error("dropRole/User AerospikeException: " + ae.getMessage());
 				}
 			} while (!(droppedRole && droppedUser) && retries-- > 0);
 		}

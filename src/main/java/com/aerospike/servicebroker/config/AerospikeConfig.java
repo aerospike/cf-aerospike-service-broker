@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2016 Aerospike, Inc.
+ * Copyright 2012-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -50,10 +50,17 @@ public class AerospikeConfig {
 	
 	@Value("${aerospike_service_description:aerospike-service-broker}")
 	private String serviceDescription;
+
+	@Value("${aerospike_license_user:none}")
+	private String licenseUser;
+	
+	@Value("${aerospike_license_password:none}")
+	private String licensePassword;	
 	
 	@Bean
 	public AerospikeClientConfig aerospikeClientConfig() throws UnknownHostException {
-		return new AerospikeClientConfig(hostname, port, licenseType, adminNamespace, user, password);
+		return new AerospikeClientConfig(hostname, port, licenseType, adminNamespace, user, 
+				password, licenseUser, licensePassword);
 	}
 	
 	@Bean

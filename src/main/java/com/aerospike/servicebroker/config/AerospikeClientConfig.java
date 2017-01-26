@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2016 Aerospike, Inc.
+ * Copyright 2012-2017 Aerospike, Inc.
  *
  * Portions may be licensed to Aerospike, Inc. under one or more contributor
  * license agreements WHICH ARE COMPATIBLE WITH THE APACHE LICENSE, VERSION 2.0.
@@ -23,14 +23,19 @@ public class AerospikeClientConfig {
 	public final String adminNamespace;
 	public final String user;
 	public final String password;
+	public final String licenseUser;
+	public final String licensePassword;
 	
 	public AerospikeClientConfig(String hostname, int port, String licenseType, 
-			String adminNamespace, String user, String password) {
+			String adminNamespace, String user, String password, String licenseUser,
+			String licensePassword) {
 		this.hostname = hostname;
 		this.port = port;
 		this.licenseType = licenseType;
 		this.adminNamespace = adminNamespace;
 		this.user = user;
 		this.password = password;
+		this.licenseUser = licenseUser;
+		this.licensePassword = licensePassword;
 	}
 }
