@@ -25,10 +25,11 @@ public class AerospikeClientConfig {
 	public final String password;
 	public final String licenseUser;
 	public final String licensePassword;
+	public final String serviceName;
 	
 	public AerospikeClientConfig(String hostname, int port, String licenseType, 
 			String adminNamespace, String user, String password, String licenseUser,
-			String licensePassword) {
+			String licensePassword, String serviceName) {
 		this.hostname = hostname;
 		this.port = port;
 		this.licenseType = licenseType;
@@ -37,5 +38,6 @@ public class AerospikeClientConfig {
 		this.password = password;
 		this.licenseUser = licenseUser;
 		this.licensePassword = licensePassword;
+		this.serviceName = serviceName;
 	}
 }

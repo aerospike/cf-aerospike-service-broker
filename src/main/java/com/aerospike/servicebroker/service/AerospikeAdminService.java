@@ -64,6 +64,7 @@ public class AerospikeAdminService {
 	private static final String NAMESPACES_INFO = "namespaces";
 	
 	private static final String ENTERPRISE = "enterprise";
+	private static final String AEROSPIKE = "aerospike";
 	private static final String EE_DOWNLOAD_URI = "http://www.aerospike.com/enterprise/download/server/latest";
 			
 	private Logger logger = LoggerFactory.getLogger(AerospikeAdminService.class);
@@ -128,6 +129,10 @@ public class AerospikeAdminService {
 	public boolean validateLicense() {
 		if (!ENTERPRISE.equalsIgnoreCase(this.config.licenseType)) {
 			return true;		// Only validate license for EE product
+		}
+		
+		if (!AEROSPIKE.equalsIgnoreCase(this.config.serviceName)) {
+			return true;		// Only validate the Managed service tile (not the service broker)
 		}
 		
 		boolean valid = false;

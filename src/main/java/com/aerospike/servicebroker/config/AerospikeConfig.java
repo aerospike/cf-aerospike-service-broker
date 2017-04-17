@@ -60,7 +60,7 @@ public class AerospikeConfig {
 	@Bean
 	public AerospikeClientConfig aerospikeClientConfig() throws UnknownHostException {
 		return new AerospikeClientConfig(hostname, port, licenseType, adminNamespace, user, 
-				password, licenseUser, licensePassword);
+				password, licenseUser, licensePassword, serviceName);
 	}
 	
 	@Bean

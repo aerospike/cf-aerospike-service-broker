@@ -5,8 +5,6 @@ aerospike_license_type: enterprise
 aerospike_admin_namespace: cf_admin
 aerospike_admin_user: cf_admin
 aerospike_admin_password: cf_admin
-aerospike_license_user: none
-aerospike_license_password: none
 
 # Catalog configuration
 aerospike_service_id: aerospike-service-broker
