@@ -36,7 +36,7 @@ import com.aerospike.servicebroker.config.AerospikeCatalogConfig;
 public class AerospikeCatalogService implements CatalogService {
 	private static final String STORAGE_ENGINE_KEY = "storage-engine";
 	private static final String MEMORY_SIZE_KEY = "memory-size";
-	private static final String REPLICATION_FACTOR_KEY = "repl-factor";
+	private static final String REPLICATION_FACTOR_KEY = "effective_replication_factor";
 	
 	private final String serviceId;
 	private final String serviceName;

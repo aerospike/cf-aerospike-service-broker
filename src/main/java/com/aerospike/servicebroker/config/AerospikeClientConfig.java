@@ -16,6 +16,12 @@
  */
 package com.aerospike.servicebroker.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.IOException;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
 public class AerospikeClientConfig {
 	public final String hostname;
 	public final int port;
@@ -26,12 +32,15 @@ public class AerospikeClientConfig {
 	public final String licenseUser;
 	public final String licensePassword;
 	public final String serviceName;
-	
+
 	public AerospikeClientConfig(String hostname, int port, String licenseType, 
 			String adminNamespace, String user, String password, String licenseUser,
-			String licensePassword, String serviceName) {
-		this.hostname = hostname;
-		this.port = port;
+			String licensePassword, String serviceName, String jsonNodeProperties,
+			String aerospikeNodeHost) {
+
+		this.hostname = aerospikeNodeHost == null ? hostname : aerospikeNodeHost;
+
+		this.port = getPortFromLink(jsonNodeProperties, port);
 		this.licenseType = licenseType;
 		this.adminNamespace = adminNamespace;
 		this.user = user;
@@ -39,5 +48,37 @@ public class AerospikeClientConfig {
 		this.licenseUser = licenseUser;
 		this.licensePassword = licensePassword;
 		this.serviceName = serviceName;
+	}
+
+	/*
+	Our bosh deploy script on CF **may** push properties from a link which will look like:
+	{
+		"aerospike": {
+			"network": {
+				"service_port": ####,
+				"fabric_port": ####,
+				"heartbeat_port": ####,
+				"info_port": ####
+			}
+		}
+	}
+	If the link was null, this is a noop.
+	*/
+	private int getPortFromLink(String jsonNodeProperties, int defaultPort) {
+		if (jsonNodeProperties == null) {
+			return defaultPort;
+		}
+		ObjectMapper mapper = new ObjectMapper();
+		try {
+			JsonNode aerospikeNode = mapper.readTree(jsonNodeProperties);
+			return aerospikeNode.get("aerospike").get("network").get("service_port").intValue();
+		} catch(IOException e) {
+			e.printStackTrace();
+			return defaultPort;
+		} catch(NullPointerException e) {
+			/* If any of these intermediate nodes don't exist, we'll get this error */
+			e.printStackTrace();
+			return defaultPort;
+		}
 	}
 }
