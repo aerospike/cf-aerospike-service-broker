@@ -15,7 +15,6 @@
  * the License.
  */
 package com.aerospike.servicebroker.config;
-
 import java.net.UnknownHostException;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -56,13 +55,19 @@ public class AerospikeConfig {
 	
 	@Value("${aerospike_license_password:none}")
 	private String licensePassword;	
-	
+
+	@Value("${aerospike_node_host:#{null}}")
+	private String aerospikeNodeHost;
+
+	@Value("${aerospike_node_properties:#{null}}")
+	private String aerospikeNodeProps;
+
 	@Bean
 	public AerospikeClientConfig aerospikeClientConfig() throws UnknownHostException {
 		return new AerospikeClientConfig(hostname, port, licenseType, adminNamespace, user, 
-				password, licenseUser, licensePassword, serviceName);
+				password, licenseUser, licensePassword, serviceName, aerospikeNodeProps, aerospikeNodeHost);
 	}
-	
+
 	@Bean
 	public AerospikeCatalogConfig aerospikeCatalogConfig() {
 		return new AerospikeCatalogConfig(serviceId, serviceName, serviceDescription);

@@ -89,7 +89,6 @@ public class AerospikeServiceInstanceBindingService implements ServiceInstanceBi
 	@Override
 	public void deleteServiceInstanceBinding(DeleteServiceInstanceBindingRequest request) {
 		String bindingId = request.getBindingId();
-		System.out.println("DELETING BINDING ID: " + bindingId);
 		
 		if (!this.adminService.serviceBindingExists(bindingId)) {
 			throw new ServiceInstanceBindingDoesNotExistException(bindingId);
